@@ -36,4 +36,4 @@ def guess_game(request):
         'feedback': feedback,
     }
 
-    return render(request, 'game/game.html', context)
+    return render(request, 'game/index.html', context)

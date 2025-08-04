@@ -1,0 +1,723 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Football Legend</title>
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.jpeg' %}">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: url("{% static 'img/ground.jpg' %}");
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            padding: 10px;
+        }
+
+        .football-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/><path d="M30 30 L70 70 M70 30 L30 70" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></svg>') repeat;
+            opacity: 0.3;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(2deg); }
+        }
+
+        .game-container {
+            background: url("{% static 'img/football-field.jpg' %}");
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 1.5rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 95vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            position: relative;
+            animation: slideIn 0.8s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .player-image-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 1rem auto;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .player-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: blur(15px) brightness(0.7);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .player-image.revealed {
+            filter: blur(0) brightness(1);
+        }
+
+        .reveal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            transition: opacity 0.6s ease;
+        }
+
+        .reveal-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .word-display {
+            font-size: 2rem;
+            font-weight: bold;
+            letter-spacing: 0.3rem;
+            margin: 1rem 0;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+        }
+
+        .letter {
+            display: inline-block;
+            margin: 0 0.1rem;
+            min-width: 1.5rem;
+            animation: bounceIn 0.6s ease;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .input-section {
+            margin: 1rem 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .letter-input {
+            font-size: 1.5rem;
+            padding: 0.8rem;
+            width: 60px;
+            text-align: center;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .letter-input:focus {
+            outline: none;
+            border-color: #4ecdc4;
+            box-shadow: 0 0 15px rgba(78, 205, 196, 0.3);
+            transform: scale(1.05);
+        }
+
+        .guess-btn {
+            font-size: 1.2rem;
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(90deg, #ff512f 0%, #dd2476 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .guess-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .guess-btn:active {
+            transform: translateY(0);
+        }
+
+        .feedback {
+            margin: 1rem 0;
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 0.8rem;
+            border-radius: 10px;
+            animation: feedbackPulse 0.5s ease;
+        }
+
+        @keyframes feedbackPulse {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .feedback.correct {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+            color: white;
+        }
+
+        .feedback.incorrect {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .feedback.neutral {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: white;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+
+        .hint-btn {
+            background: linear-gradient(90deg, #ffc371 0%, #ff5f6d 100%);
+            color: white;
+            border: none;
+            padding: 0.4rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .hint-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(243, 156, 18, 0.3);
+        }
+
+        .new-game-btn {
+            background: linear-gradient(45deg, #9b59b6, #8e44ad);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .new-game-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(155, 89, 182, 0.3);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .stat-item {
+            background: #D33C3C;
+            color: white;
+            padding: 0.8rem;
+            border-radius: 10px;
+            min-width: 80px;
+            animation: statGlow 2s ease-in-out infinite alternate;
+            flex: 1;
+            max-width: 120px;
+        }
+
+        @keyframes statGlow {
+            from { box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3); }
+            to { box-shadow: 0 5px 25px rgba(118, 75, 162, 0.5); }
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+        }
+
+        .wrong-letters {
+            margin: 0.5rem 0;
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .wrong-letter {
+            display: inline-block;
+            margin: 0 0.2rem;
+            padding: 0.3rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            animation: wrongShake 0.5s ease;
+        }
+
+        @keyframes wrongShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
+        }
+
+        .game-won {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            margin: 0.5rem 0;
+            animation: celebration 1s ease-in-out;
+        }
+
+        @keyframes celebration {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.05) rotate(1deg); }
+            75% { transform: scale(1.05) rotate(-1deg); }
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+            
+            .game-container {
+                padding: 1rem;
+                border-radius: 16px;
+                max-height: 98vh;
+            }
+            
+            .title {
+                font-size: 1.5rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .word-display {
+                font-size: 1.5rem;
+                letter-spacing: 0.2rem;
+                margin: 0.5rem 0;
+            }
+            
+            .player-image-container {
+                width: 240px;
+                height: 240px;
+            }
+            
+            .letter-input {
+                font-size: 1.3rem;
+                padding: 0.6rem;
+                width: 50px;
+            }
+            
+            .guess-btn {
+                font-size: 1rem;
+                padding: 0.6rem 1.2rem;
+            }
+            
+            .stats {
+                gap: 0.3rem;
+            }
+            
+            .stat-item {
+                padding: 0.6rem;
+                min-width: 70px;
+            }
+            
+            .stat-number {
+                font-size: 1.3rem;
+            }
+            
+            .stat-label {
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .title {
+                font-size: 1.3rem;
+            }
+            
+            .word-display {
+                font-size: 1.3rem;
+            }
+            
+            .player-image-container {
+                width: 200px;
+                height: 200px;
+            }
+            
+            .input-section {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+            
+            .letter-input {
+                width: 45px;
+                font-size: 1.2rem;
+            }
+            
+            .guess-btn {
+                font-size: 0.9rem;
+                padding: 0.5rem 1rem;
+            }
+        }
+
+        /* Landscape mobile orientation */
+        @media (max-height: 600px) and (orientation: landscape) {
+            .game-container {
+                max-height: 95vh;
+                padding: 0.8rem;
+            }
+            
+            .title {
+                font-size: 1.3rem;
+                margin-bottom: 0.3rem;
+            }
+            
+            .player-image-container {
+                width: 160px;
+                height: 160px;
+                margin: 0.5rem auto;
+            }
+            
+            .word-display {
+                font-size: 1.3rem;
+                margin: 0.5rem 0;
+            }
+            
+            .stats {
+                margin: 0.5rem 0;
+            }
+            
+            .stat-item {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="football-bg"></div>
+    
+    <div class="game-container">
+        <h1 class="title">⚽ Guess the Football Legend</h1>
+        
+        <div class="player-image-container">
+            <img id="playerImage" class="player-image" src="" alt="Football Legend">
+            <div id="revealOverlay" class="reveal-overlay">
+                🔍 Mystery Player
+            </div>
+        </div>
+        
+        <div id="feedback" class="feedback" style="display: none;"></div>
+        
+        <div class="button-group">
+            <button id="hintBtn" class="hint-btn">💡 Get Hint</button>
+            <button id="newGameBtn" class="new-game-btn">🔄 New Game</button>
+        </div>
+        
+        <div class="word-display" id="wordDisplay"></div>
+        
+        <div class="input-section">
+            <input type="text" id="letterInput" class="letter-input" maxlength="1" placeholder="?">
+            <button id="guessBtn" class="guess-btn">Guess Letter</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-number" id="correctGuesses">0</span>
+                <div class="stat-label">Correct</div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="wrongGuesses">0</span>
+                <div class="stat-label">Wrong</div>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="hintsUsed">0</span>
+                <div class="stat-label">Hints</div>
+            </div>
+        </div>
+        
+        <div id="wrongLetters" class="wrong-letters"></div>
+    </div>
+
+    <script>
+        class FootballLegendGame {
+            constructor() {
+                this.players = [
+                    {
+                        name: "MESSI",
+                        image: "{% static 'img/messi.jpeg' %}",
+                        hint: "Argentine maestro, 7 Ballon d'Or winner"
+                    },
+                    {
+                        name: "RONALDO",
+                        image: "{% static 'img/cr7.jpeg' %}",
+                        hint: "Portuguese goal machine, CR7"
+                    },
+                    {
+                        name: "PELE",
+                        image: "{% static 'img/pele.jpeg' %}",
+                        hint: "Brazilian legend, 3 World Cups"
+                    },
+                    {
+                        name: "MARADONA",
+                        image: "{% static 'img/mardona.jpg' %}",
+                        hint: "Hand of God, Argentine genius"
+                    },
+                    {
+                        name: "BECKHAM",
+                        image: "{% static 'img/bekham.jpeg' %}",
+                        hint: "English midfielder, bend it like..."
+                    },
+                    {
+                        name: "ZIDANE",
+                        image: "{% static 'img/zidane.jpeg' %}",
+                        hint: "French elegance, headbutt in final"
+                    },
+                    {
+                        name: "RONALDINHO",
+                        image: "{% static 'img/ronalidho.jpg' %}",
+                        hint: "Brazilian samba and smile, 2005 Ballon d'Or"
+                    }
+                ];
+                
+                this.currentPlayer = null;
+                this.guessedLetters = [];
+                this.wrongLetters = [];
+                this.correctGuesses = 0;
+                this.wrongGuesses = 0;
+                this.hintsUsed = 0;
+                this.gameWon = false;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.newGame();
+            }
+            
+            initializeElements() {
+                this.playerImage = document.getElementById('playerImage');
+                this.revealOverlay = document.getElementById('revealOverlay');
+                this.wordDisplay = document.getElementById('wordDisplay');
+                this.letterInput = document.getElementById('letterInput');
+                this.guessBtn = document.getElementById('guessBtn');
+                this.feedback = document.getElementById('feedback');
+                this.wrongLettersDiv = document.getElementById('wrongLetters');
+                this.correctGuessesSpan = document.getElementById('correctGuesses');
+                this.wrongGuessesSpan = document.getElementById('wrongGuesses');
+                this.hintsUsedSpan = document.getElementById('hintsUsed');
+                this.hintBtn = document.getElementById('hintBtn');
+                this.newGameBtn = document.getElementById('newGameBtn');
+            }
+            
+            setupEventListeners() {
+                this.guessBtn.addEventListener('click', () => this.makeGuess());
+                this.letterInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.makeGuess();
+                });
+                this.letterInput.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                });
+                this.hintBtn.addEventListener('click', () => this.showHint());
+                this.newGameBtn.addEventListener('click', () => this.newGame());
+            }
+            
+            newGame() {
+                this.currentPlayer = this.players[Math.floor(Math.random() * this.players.length)];
+                this.guessedLetters = [];
+                this.wrongLetters = [];
+                this.gameWon = false;
+                
+                this.playerImage.src = this.currentPlayer.image;
+                this.playerImage.classList.remove('revealed');
+                this.revealOverlay.classList.remove('hidden');
+                
+                this.updateWordDisplay();
+                this.updateStats();
+                this.updateWrongLetters();
+                this.clearFeedback();
+                this.letterInput.value = '';
+                this.letterInput.focus();
+            }
+            
+            updateWordDisplay() {
+                const display = this.currentPlayer.name.split('').map(letter => {
+                    if (this.guessedLetters.includes(letter)) {
+                        return `<span class="letter">${letter}</span>`;
+                    } else {
+                        return `<span class="letter">_</span>`;
+                    }
+                }).join('');
+                
+                this.wordDisplay.innerHTML = display;
+            }
+            
+            makeGuess() {
+                if (this.gameWon) return;
+                
+                const letter = this.letterInput.value.toUpperCase();
+                if (!letter || this.guessedLetters.includes(letter)) {
+                    this.showFeedback('Please enter a new letter!', 'neutral');
+                    return;
+                }
+                
+                this.guessedLetters.push(letter);
+                
+                if (this.currentPlayer.name.includes(letter)) {
+                    this.correctGuesses++;
+                    this.showFeedback('Correct! 🎉', 'correct');
+                    this.updateWordDisplay();
+                    
+                    if (this.checkWin()) {
+                        this.winGame();
+                    }
+                } else {
+                    this.wrongGuesses++;
+                    this.wrongLetters.push(letter);
+                    this.showFeedback('Not in the name! ❌', 'incorrect');
+                    this.updateWrongLetters();
+                }
+                
+                this.updateStats();
+                this.letterInput.value = '';
+                this.letterInput.focus();
+            }
+            
+            checkWin() {
+                return this.currentPlayer.name.split('').every(letter => 
+                    this.guessedLetters.includes(letter)
+                );
+            }
+            
+            winGame() {
+                this.gameWon = true;
+                this.playerImage.classList.add('revealed');
+                this.revealOverlay.classList.add('hidden');
+                
+                this.showFeedback(`🏆 Congratulations! You guessed ${this.currentPlayer.name}! 🏆`, 'correct');
+                
+                setTimeout(() => {
+                    const gameWonDiv = document.createElement('div');
+                    gameWonDiv.className = 'game-won';
+                    gameWonDiv.innerHTML = `
+                        <h2>🎉 VICTORY! 🎉</h2>
+                        <p>You successfully identified <strong>${this.currentPlayer.name}</strong>!</p>
+                        <p>Correct: ${this.correctGuesses} | Wrong: ${this.wrongGuesses}</p>
+                    `;
+                    this.feedback.appendChild(gameWonDiv);
+                }, 1000);
+            }
+            
+            showHint() {
+                if (this.gameWon) return;
+                
+                this.hintsUsed++;
+                this.updateStats();
+                this.showFeedback(`💡 Hint: ${this.currentPlayer.hint}`, 'neutral');
+            }
+            
+            showFeedback(message, type) {
+                this.feedback.textContent = message;
+                this.feedback.className = `feedback ${type}`;
+                this.feedback.style.display = 'block';
+                
+                setTimeout(() => {
+                    if (!this.gameWon) {
+                        this.feedback.style.display = 'none';
+                    }
+                }, 3000);
+            }
+            
+            clearFeedback() {
+                this.feedback.style.display = 'none';
+                this.feedback.innerHTML = '';
+            }
+            
+            updateStats() {
+                this.correctGuessesSpan.textContent = this.correctGuesses;
+                this.wrongGuessesSpan.textContent = this.wrongGuesses;
+                this.hintsUsedSpan.textContent = this.hintsUsed;
+            }
+            
+            updateWrongLetters() {
+                if (this.wrongLetters.length > 0) {
+                    this.wrongLettersDiv.innerHTML = `
+                        <div>Wrong letters:</div>
+                        ${this.wrongLetters.map(letter => 
+                            `<span class="wrong-letter">${letter}</span>`
+                        ).join('')}
+                    `;
+                } else {
+                    this.wrongLettersDiv.innerHTML = '';
+                }
+            }
+        }
+        
+        // Initialize the game when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new FootballLegendGame();
+        });
+    </script>
+</body>
+</html>
